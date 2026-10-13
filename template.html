@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>청렴 신고 사건 조회</title>
+  <meta name="description" content="시민이 청렴 신고 사건을 신고유형과 처리상태로 빠르게 조회할 수 있는 페이지">
+  <style>
+    :root {
+      --bg: #f6f7f9; --surface: #fff; --text: #1b1f24; --muted: #5b6470;
+      --line: #dfe3e8; --accent: #1f5fbf; --accent-soft: #e8f0fb;
+      --s-receipt: #6b7280; --s-invest: #b45309; --s-done: #15803d;
+      --s-transfer: #7c3aed; --s-reject: #b91c1c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111418; --surface: #1a1e24; --text: #e6e9ed; --muted: #9aa3ad;
+        --line: #2c323a; --accent: #7aa7ec; --accent-soft: #1d2a3d;
+        --s-receipt: #9ca3af; --s-invest: #f59e0b; --s-done: #4ade80;
+        --s-transfer: #a78bfa; --s-reject: #f87171;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+    header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    header p { margin: 0; color: var(--muted); }
+
+    .layout { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 24px; }
+    @media (min-width: 900px) { .layout { grid-template-columns: 1fr 300px; } }
+
+    .filters {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; min-width: 150px; flex: 1; }
+    .field label { font-size: .85rem; color: var(--muted); }
+    select, button {
+      font: inherit; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .count { margin: 16px 0 12px; font-weight: 600; }
+    .count strong { color: var(--accent); font-size: 1.15rem; }
+
+    .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px;
+             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .case-id { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .badge { font-size: .8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+             border: 1px solid currentColor; white-space: nowrap; }
+    .s-접수완료 { color: var(--s-receipt); } .s-조사중 { color: var(--s-invest); }
+    .s-처리완료 { color: var(--s-done); }   .s-이첩 { color: var(--s-transfer); }
+    .s-기각 { color: var(--s-reject); }
+    .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+    .card dt { color: var(--muted); font-size: .85rem; }
+    .card dd { margin: 0; font-weight: 500; }
+    .type-tag { display: inline-block; background: var(--accent-soft); color: var(--accent);
+                padding: 0 8px; border-radius: 6px; }
+
+    .more { display: block; margin: 16px auto 0; }
+    .empty { padding: 32px; text-align: center; color: var(--muted);
+             background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; }
+
+    aside.news { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+                 padding: 16px; align-self: start; }
+    aside.news h2 { margin: 0 0 4px; font-size: 1.05rem; }
+    aside.news .sub { margin: 0 0 12px; color: var(--muted); font-size: .85rem; }
+    aside.news ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+    aside.news a { color: var(--text); text-decoration: none; }
+    aside.news a:hover { color: var(--accent); text-decoration: underline; }
+    .news-meta { display: block; color: var(--muted); font-size: .8rem; }
+    .news-empty { color: var(--muted); list-style: none; margin-left: -20px; }
+    .news-source { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: .85rem; }
+    .news-source a { color: var(--accent); }
+
+    footer { margin-top: 32px; color: var(--muted); font-size: .8rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>청렴 신고 사건 조회</h1>
+      <p>신고유형과 처리상태를 골라 전체 {{TOTAL}}건의 신고 사건을 빠르게 찾아보세요.</p>
+    </header>
+
+    <div class="layout">
+      <main>
+        <form class="filters" id="filters" role="search" aria-label="신고 사건 검색">
+          <div class="field">
+            <label for="f-type">신고유형</label>
+            <select id="f-type" name="type">
+              <option value="">전체</option>
+            {{TYPE_OPTIONS}}
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-status">처리상태</label>
+            <select id="f-status" name="status">
+              <option value="">전체</option>
+            {{STATUS_OPTIONS}}
+            </select>
+          </div>
+          <button type="reset" id="reset">초기화</button>
+        </form>
+
+        <p class="count" id="count" aria-live="polite">결과 <strong>{{TOTAL}}</strong>건</p>
+
+        <ul class="cards" id="cards"></ul>
+        <p class="empty" id="empty" hidden>조건에 맞는 신고 사건이 없습니다.</p>
+        <button class="more primary" id="more" type="button" hidden>더 보기</button>
+      </main>
+
+      <aside class="news" aria-labelledby="news-title">
+        <h2 id="news-title">관련 최신 뉴스</h2>
+        <p class="sub">검색어 “{{NEWS_QUERY}}” · 빌드 시점 최신 5건</p>
+        <ol>
+        {{NEWS_ITEMS}}
+        </ol>
+        <p class="news-source">출처: <a href="{{NEWS_SOURCE}}" target="_blank" rel="noopener noreferrer">Google 뉴스 RSS</a></p>
+      </aside>
+    </div>
+
+    <footer>데이터 기준: 첨부 청렴신고 사건데이터 · 페이지 빌드 {{BUILT_AT}}</footer>
+  </div>
+
+  <script id="cases-data" type="application/json">{{CASES_JSON}}</script>
+  <script>
+    (function () {
+      var PAGE = 30;
+      var cases = JSON.parse(document.getElementById("cases-data").textContent);
+      var $type = document.getElementById("f-type");
+      var $status = document.getElementById("f-status");
+      var $cards = document.getElementById("cards");
+      var $count = document.getElementById("count");
+      var $empty = document.getElementById("empty");
+      var $more = document.getElementById("more");
+      var filtered = cases, shown = 0;
+
+      function esc(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+
+      function card(c) {
+        return '<li class="card">' +
+          '<div class="card-head"><span class="case-id">' + esc(c.id) + '</span>' +
+          '<span class="badge s-' + esc(c.status) + '">' + esc(c.status) + '</span></div>' +
+          '<dl>' +
+          '<dt>신고일자</dt><dd><time datetime="' + esc(c.date) + '">' + esc(c.date) + '</time></dd>' +
+          '<dt>신고유형</dt><dd><span class="type-tag">' + esc(c.type) + '</span></dd>' +
+          '<dt>지역</dt><dd>' + esc(c.region) + '</dd>' +
+          '<dt>처리상태</dt><dd>' + esc(c.status) + '</dd>' +
+          '</dl></li>';
+      }
+
+      function renderMore() {
+        var next = filtered.slice(shown, shown + PAGE);
+        $cards.insertAdjacentHTML("beforeend", next.map(card).join(""));
+        shown += next.length;
+        $more.hidden = shown >= filtered.length;
+        if (!$more.hidden) $more.textContent = "더 보기 (" + shown + " / " + filtered.length + ")";
+      }
+
+      function apply() {
+        var t = $type.value, s = $status.value;
+        filtered = cases.filter(function (c) {
+          return (!t || c.type === t) && (!s || c.status === s);
+        });
+        $count.innerHTML = "결과 <strong>" + filtered.length + "</strong>건";
+        $cards.innerHTML = ""; shown = 0;
+        $empty.hidden = filtered.length > 0;
+        renderMore();
+
+        // 필터 상태를 주소에 남겨 공유·새로고침해도 유지
+        var q = new URLSearchParams();
+        if (t) q.set("type", t);
+        if (s) q.set("status", s);
+        var qs = q.toString();
+        try { history.replaceState(null, "", qs ? "?" + qs : location.pathname); } catch (e) {}
+      }
+
+      // URL 파라미터로 초기 필터 (?type=금품수수&status=조사중)
+      var p = new URLSearchParams(location.search);
+      if (p.get("type")) $type.value = p.get("type");
+      if (p.get("status")) $status.value = p.get("status");
+
+      $type.addEventListener("change", apply);
+      $status.addEventListener("change", apply);
+      document.getElementById("filters").addEventListener("reset", function () { setTimeout(apply, 0); });
+      $more.addEventListener("click", renderMore);
+
+      apply();
+    })();
+  </script>
+</body>
+</html>
